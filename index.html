@@ -256,6 +256,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
 .suggest-item-title { font-weight: 600; font-size: 14px; }
 .suggest-item-meta { font-size: 12px; color: #999; display: flex; gap: 12px; flex-wrap: wrap; }
 .suggest-item-content { font-size: 13px; color: #333; line-height: 1.7; white-space: pre-wrap; margin-bottom: 10px; }
+.admin-layout { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 24px; align-items: start; }
+.admin-nav { position: sticky; top: 0; padding: 8px; border: 1px solid #e5e5e5; border-radius: 10px; background: #fafafa; }
+.admin-nav-title { padding: 8px 10px 12px; color: #999; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.admin-nav-btn { display: flex; align-items: center; width: 100%; min-height: 38px; padding: 8px 10px; margin-bottom: 3px; border: 0; border-radius: 7px; background: transparent; color: #555; cursor: pointer; font: inherit; font-size: 13px; text-align: left; }
+.admin-nav-btn:hover { background: #f0f0f0; color: #1a1a1a; }
+.admin-nav-btn.active { background: #1a1a1a; color: #fff; }
+.admin-nav-btn .admin-nav-meta { margin-left: auto; color: #999; font-size: 11px; }
+.admin-nav-btn.active .admin-nav-meta { color: #ddd; }
+.admin-detail { min-width: 0; }
+.admin-detail > [data-admin-pane] { display: none; }
+.admin-detail > [data-admin-pane].admin-pane-active { display: block; }
+.admin-detail > .stats-row.admin-pane-active { display: flex; }
+.admin-ai-result { min-height: 150px; font-family: 'SF Mono', Monaco, Consolas, monospace; line-height: 1.6; }
+.admin-ai-note { color: #777; font-size: 12px; line-height: 1.6; margin: 8px 0 14px; }
 
 @media (max-width: 900px) {
   .sidebar { width: 180px; }
@@ -298,7 +312,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
   .tag-table { font-size: 13px; }
   .tag-table th, .tag-table td { padding: 8px 8px; }
   .weight-slider input[type="range"] { width: 64px; }
-  .admin-section-title { font-size: 16px; }
+   .admin-section-title { font-size: 16px; }
+   .admin-layout { display: block; }
+   .admin-nav { position: static; display: flex; gap: 4px; overflow-x: auto; margin-bottom: 16px; padding: 6px; scrollbar-width: none; }
+   .admin-nav::-webkit-scrollbar { display: none; }
+   .admin-nav-title { display: none; }
+   .admin-nav-btn { width: auto; flex: 0 0 auto; white-space: nowrap; }
+   .admin-nav-btn .admin-nav-meta { display: none; }
   .dup-panel .btn-group { flex-direction: column; }
   #category-list { max-height: 240px; }
   .modal-content { width: 94%; }
@@ -309,14 +329,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
 <body>
 <div class="widget-root" id="app">
   <div class="nav-bar">
-    <div class="nav-title" id="nav-title">
+    <h1 class="nav-title" id="nav-title">
       SD Prompt Generator
       <!-- [MODIFIED] 新增：同步状态指示器 -->
       <span class="sync-indicator" id="sync-indicator" style="margin-left:8px;">
         <span class="sync-dot"></span>
         <span id="sync-text">未连接</span>
       </span>
-    </div>
+    </h1>
     <div style="display:flex;align-items:center;gap:12px;">
       <div class="nav-tabs">
         <button class="nav-tab active" data-tab="generator" onclick="switchTab('generator')">生成器</button>
@@ -392,7 +412,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
     </div>
 
     <div id="admin-content" style="display:none;">
-      <div class="admin-section">
+      <div class="admin-layout">
+      <nav class="admin-nav" aria-label="后台设置">
+        <div class="admin-nav-title">设置</div>
+        <button class="admin-nav-btn active" data-admin-nav="overview" onclick="switchAdminPane('overview')">概览</button>
+        <button class="admin-nav-btn" data-admin-nav="storage" onclick="switchAdminPane('storage')">连接与数据</button>
+        <button class="admin-nav-btn" data-admin-nav="categories" onclick="switchAdminPane('categories')">分类</button>
+        <button class="admin-nav-btn" data-admin-nav="tags" onclick="switchAdminPane('tags')">标签</button>
+        <button class="admin-nav-btn" data-admin-nav="suggestions" onclick="switchAdminPane('suggestions')"><span>用户建议</span><span class="admin-nav-meta" id="admin-nav-suggest-count">0</span></button>
+        <button class="admin-nav-btn" data-admin-nav="ai" onclick="switchAdminPane('ai')">AI 助手</button>
+      </nav>
+      <div class="admin-detail">
+      <div class="admin-section admin-pane-active" data-admin-pane="overview">
         <div class="admin-section-title">当前用户</div>
         <div class="storage-panel">
           <div id="current-user-info" style="font-size:14px;margin-bottom:12px;">
@@ -405,7 +436,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
         </div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="storage">
         <div class="admin-section-title">连接状态</div>
         <div class="storage-panel">
           <div class="storage-status">
@@ -428,7 +459,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
         </div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="overview">
         <div class="admin-section-title">数据持久化</div>
         <div class="form-row">
           <button class="btn btn-primary" onclick="exportData()">导出 JSON 备份</button>
@@ -440,13 +471,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
         </div>
       </div>
 
-      <div class="stats-row">
+      <div class="stats-row admin-pane-active" data-admin-pane="overview">
         <div class="stat-card"><div class="stat-value" id="stat-cats">0</div><div class="stat-label">分类数</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-tags">0</div><div class="stat-label">标签总数</div></div>
         <div class="stat-card"><div class="stat-value" id="stat-dups">0</div><div class="stat-label">重复标签</div></div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="tags">
         <div class="admin-section-title">查重检测</div>
         <div class="form-row">
           <button class="btn btn-primary" onclick="runDuplicateCheck()">运行查重</button>
@@ -455,7 +486,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
         <div id="dup-results"></div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="categories">
         <div class="admin-section-title">分类管理</div>
         <div class="form-row">
           <input type="text" class="form-input" id="new-cat-name" placeholder="分类名称（如：质量词）">
@@ -465,7 +496,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
         <div id="category-list" style="max-height:300px; overflow-y:auto;"></div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="categories">
         <div class="admin-section-title">分类合并</div>
         <div class="form-row">
           <select class="form-select" id="merge-source-select"></select>
@@ -476,7 +507,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
         <div style="font-size:13px;color:#999;">将源分类的所有标签移动到目标分类，然后删除源分类。</div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="tags">
         <div class="admin-section-title">批量添加标签</div>
         <div class="form-row">
           <select class="form-select" id="batch-cat-select"></select>
@@ -493,7 +524,7 @@ fish 鱼
         <button class="btn btn-primary" onclick="batchAddTags()">批量添加</button>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="tags">
         <div class="admin-section-title">标签列表</div>
         <div class="tag-filter-row">
           <select class="form-select" id="tag-filter-cat" onchange="renderTagTable()">
@@ -509,12 +540,39 @@ fish 鱼
         </div>
       </div>
 
-      <div class="admin-section">
+      <div class="admin-section" data-admin-pane="suggestions">
         <div class="admin-section-title">用户建议<span class="section-count" id="suggest-count">0</span></div>
         <div id="suggest-list" style="font-size:13px;color:#666;">加载中...</div>
         <div class="form-row" style="margin-top:12px;">
           <button class="btn" onclick="loadSuggestions()">刷新建议</button>
         </div>
+      </div>
+      <div class="admin-section" data-admin-pane="ai">
+        <div class="admin-section-title">AI 助手 <span class="section-count">实验性</span></div>
+        <div class="admin-ai-note">初版使用本地词库生成可编辑草稿，不会把提示词或密钥发送到第三方服务。后续可在此接入兼容 OpenAI API 的模型服务。</div>
+        <div class="form-row">
+          <input class="form-input" id="ai-description" placeholder="描述你想生成的画面，例如：雨夜东京街头的赛博朋克少女" style="min-width:260px;">
+          <select class="form-select" id="ai-style">
+            <option value="">自动选择风格</option>
+            <option value="anime">二次元插画</option>
+            <option value="photo">写实摄影</option>
+            <option value="cinematic">电影感</option>
+            <option value="fantasy">奇幻概念艺术</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <select class="form-select" id="ai-quality">
+            <option value="high">高质量</option>
+            <option value="balanced">均衡</option>
+            <option value="raw">简洁草稿</option>
+          </select>
+          <button class="btn btn-primary" onclick="generateAiDraft()">生成提示词草稿</button>
+          <button class="btn" onclick="applyAiDraft()">加入提示词</button>
+        </div>
+        <textarea class="textarea-batch admin-ai-result" id="ai-result" placeholder="生成的提示词会出现在这里，可编辑后加入当前提示词..."></textarea>
+        <div id="ai-status" class="admin-ai-note" style="margin-bottom:0;"></div>
+      </div>
+      </div>
       </div>
     </div>
   </div>
@@ -1302,6 +1360,8 @@ async function loadSuggestions() {
       data = res.data || [];
     }
     if (countEl) countEl.textContent = data.length;
+    const navCountEl = document.getElementById('admin-nav-suggest-count');
+    if (navCountEl) navCountEl.textContent = data.length;
     if (!data || data.length === 0) {
       listEl.innerHTML = '<div class="dup-empty">暂无建议</div>';
       return;
@@ -1475,6 +1535,74 @@ function resetToDefault() {
   renderAll(); updateStats(); showToast('已重置为默认数据');
 }
 
+function switchAdminPane(pane) {
+  document.querySelectorAll('[data-admin-pane]').forEach(function(el) {
+    el.classList.toggle('admin-pane-active', el.getAttribute('data-admin-pane') === pane);
+  });
+  document.querySelectorAll('[data-admin-nav]').forEach(function(el) {
+    el.classList.toggle('active', el.getAttribute('data-admin-nav') === pane);
+  });
+  if (pane === 'storage') checkBackendStatus();
+  if (pane === 'suggestions') loadSuggestions();
+}
+
+function generateAiDraft() {
+  const input = document.getElementById('ai-description');
+  const output = document.getElementById('ai-result');
+  const status = document.getElementById('ai-status');
+  const style = document.getElementById('ai-style').value;
+  const quality = document.getElementById('ai-quality').value;
+  const description = input ? input.value.trim() : '';
+  if (!description) {
+    showToast('请先输入画面描述');
+    return;
+  }
+
+  const tokens = description.split(/[\s,，。；;、!！?？]+/).filter(Boolean);
+  const matched = [];
+  tokens.forEach(function(token) {
+    tags.forEach(function(tag) {
+      const name = String(tag.name || '').toLowerCase();
+      const cn = String(tag.cn || '').toLowerCase();
+      const needle = token.toLowerCase();
+      if ((name.includes(needle) || needle.includes(name) || cn.includes(needle) || needle.includes(cn)) && matched.indexOf(tag.name) < 0) {
+        matched.push(tag.name);
+      }
+    });
+  });
+
+  const qualityTags = quality === 'raw' ? [] : quality === 'balanced'
+    ? ['best quality', 'highly detailed']
+    : ['masterpiece', 'best quality', 'ultra-detailed', 'high resolution'];
+  const styleTags = {
+    anime: ['anime', 'digital art', 'illustration'],
+    photo: ['photorealistic', 'RAW photo', 'sharp focus'],
+    cinematic: ['cinematic lighting', 'cinematic composition', 'film grain'],
+    fantasy: ['fantasy art', 'concept art', 'dramatic lighting']
+  }[style] || [];
+  const sceneTags = tokens.slice(0, 8);
+  const draft = qualityTags.concat(sceneTags, styleTags, matched).filter(function(value, index, list) {
+    return value && list.indexOf(value) === index;
+  }).join(', ');
+  if (output) output.value = draft;
+  if (status) status.textContent = '已生成本地草稿，共 ' + draft.split(', ').filter(Boolean).length + ' 个词。生成结果可继续编辑。';
+}
+
+function applyAiDraft() {
+  const output = document.getElementById('ai-result');
+  const draft = output ? output.value.trim() : '';
+  if (!draft) {
+    showToast('请先生成或输入提示词草稿');
+    return;
+  }
+  const prompt = document.getElementById('prompt-text');
+  if (prompt) {
+    prompt.value = prompt.value.trim() ? prompt.value.trim() + ', ' + draft : draft;
+    syncPromptSheet();
+    showToast('AI 草稿已加入提示词');
+  }
+}
+
 // ==================== [MODIFIED] 修改点 12: 移除旧的 admin 解锁逻辑 ====================
 // 旧的 handleTitleClick, handleTitleLongPress, revealAdminTab 已删除
 
@@ -1505,7 +1633,7 @@ function switchTab(tab) {
   } else {
     document.getElementById('admin-view').style.display = 'block';
     updateAdminVisibility();
-    renderAdmin(); updateStats(); loadSuggestions();
+    renderAdmin(); updateStats(); switchAdminPane('overview');
   }
 }
 
