@@ -270,6 +270,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
 .admin-detail > .stats-row.admin-pane-active { display: flex; }
 .admin-ai-result { min-height: 150px; font-family: 'SF Mono', Monaco, Consolas, monospace; line-height: 1.6; }
 .admin-ai-note { color: #777; font-size: 12px; line-height: 1.6; margin: 8px 0 14px; }
+.admin-ai-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.admin-ai-label { color: #666; font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+.admin-ai-history-title { border-top: 1px solid #eee; color: #555; font-size: 13px; font-weight: 600; margin-top: 18px; padding-top: 14px; }
+.admin-ai-history { display: grid; gap: 8px; margin-top: 8px; }
+.admin-ai-history-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 1px solid #e5e5e5; border-radius: 7px; background: #fafafa; color: #555; font-size: 12px; }
+.admin-ai-history-item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 900px) {
   .sidebar { width: 180px; }
@@ -319,6 +325,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helv
    .admin-nav-title { display: none; }
    .admin-nav-btn { width: auto; flex: 0 0 auto; white-space: nowrap; }
    .admin-nav-btn .admin-nav-meta { display: none; }
+   .admin-ai-columns { grid-template-columns: 1fr; }
   .dup-panel .btn-group { flex-direction: column; }
   #category-list { max-height: 240px; }
   .modal-content { width: 94%; }
@@ -549,7 +556,7 @@ fish 鱼
       </div>
       <div class="admin-section" data-admin-pane="ai">
         <div class="admin-section-title">AI 助手 <span class="section-count">实验性</span></div>
-        <div class="admin-ai-note">初版使用本地词库生成可编辑草稿，不会把提示词或密钥发送到第三方服务。后续可在此接入兼容 OpenAI API 的模型服务。</div>
+        <div class="admin-ai-note">本地提示词工作台：结合当前词库生成正向与反向草稿，不会把内容或密钥发送到第三方服务。后续可在此接入兼容 OpenAI API 的模型服务。</div>
         <div class="form-row">
           <input class="form-input" id="ai-description" placeholder="描述你想生成的画面，例如：雨夜东京街头的赛博朋克少女" style="min-width:260px;">
           <select class="form-select" id="ai-style">
@@ -559,6 +566,12 @@ fish 鱼
             <option value="cinematic">电影感</option>
             <option value="fantasy">奇幻概念艺术</option>
           </select>
+          <select class="form-select" id="ai-composition">
+            <option value="portrait">人像构图</option>
+            <option value="wide">宽幅场景</option>
+            <option value="closeup">特写</option>
+            <option value="dynamic">动态构图</option>
+          </select>
         </div>
         <div class="form-row">
           <select class="form-select" id="ai-quality">
@@ -566,11 +579,35 @@ fish 鱼
             <option value="balanced">均衡</option>
             <option value="raw">简洁草稿</option>
           </select>
+          <select class="form-select" id="ai-lighting">
+            <option value="">自动光照</option>
+            <option value="soft">柔和光线</option>
+            <option value="dramatic">戏剧光线</option>
+            <option value="neon">霓虹光线</option>
+            <option value="golden">黄金时刻</option>
+          </select>
           <button class="btn btn-primary" onclick="generateAiDraft()">生成提示词草稿</button>
-          <button class="btn" onclick="applyAiDraft()">加入提示词</button>
+          <button class="btn" onclick="randomAiIdea()">随机灵感</button>
+          <button class="btn" onclick="clearAiDraft()">清空</button>
         </div>
-        <textarea class="textarea-batch admin-ai-result" id="ai-result" placeholder="生成的提示词会出现在这里，可编辑后加入当前提示词..."></textarea>
+        <div class="form-row">
+          <button class="btn btn-primary" onclick="applyAiDraft()">加入当前提示词</button>
+          <button class="btn" onclick="copyAiDraft('positive')">复制正向</button>
+          <button class="btn" onclick="copyAiDraft('negative')">复制反向</button>
+        </div>
+        <div class="admin-ai-columns">
+          <div>
+            <div class="admin-ai-label">正向提示词</div>
+            <textarea class="textarea-batch admin-ai-result" id="ai-result" placeholder="正向提示词草稿..."></textarea>
+          </div>
+          <div>
+            <div class="admin-ai-label">反向提示词</div>
+            <textarea class="textarea-batch admin-ai-result" id="ai-negative-result" placeholder="反向提示词草稿..."></textarea>
+          </div>
+        </div>
         <div id="ai-status" class="admin-ai-note" style="margin-bottom:0;"></div>
+        <div class="admin-ai-history-title">最近草稿</div>
+        <div id="ai-history" class="admin-ai-history"></div>
       </div>
       </div>
       </div>
@@ -1544,14 +1581,18 @@ function switchAdminPane(pane) {
   });
   if (pane === 'storage') checkBackendStatus();
   if (pane === 'suggestions') loadSuggestions();
+  if (pane === 'ai') renderAiHistory();
 }
 
 function generateAiDraft() {
   const input = document.getElementById('ai-description');
   const output = document.getElementById('ai-result');
+  const negativeOutput = document.getElementById('ai-negative-result');
   const status = document.getElementById('ai-status');
   const style = document.getElementById('ai-style').value;
   const quality = document.getElementById('ai-quality').value;
+  const composition = document.getElementById('ai-composition').value;
+  const lighting = document.getElementById('ai-lighting').value;
   const description = input ? input.value.trim() : '';
   if (!description) {
     showToast('请先输入画面描述');
@@ -1580,12 +1621,29 @@ function generateAiDraft() {
     cinematic: ['cinematic lighting', 'cinematic composition', 'film grain'],
     fantasy: ['fantasy art', 'concept art', 'dramatic lighting']
   }[style] || [];
+  const compositionTags = {
+    portrait: ['portrait', 'centered composition'],
+    wide: ['wide shot', 'environmental composition'],
+    closeup: ['close-up', 'detailed face'],
+    dynamic: ['dynamic pose', 'dynamic angle', 'motion']
+  }[composition] || [];
+  const lightingTags = {
+    soft: ['soft light', 'diffused lighting'],
+    dramatic: ['dramatic lighting', 'strong contrast'],
+    neon: ['neon lighting', 'colorful reflections'],
+    golden: ['golden hour', 'warm light']
+  }[lighting] || [];
   const sceneTags = tokens.slice(0, 8);
-  const draft = qualityTags.concat(sceneTags, styleTags, matched).filter(function(value, index, list) {
+  const draft = qualityTags.concat(sceneTags, styleTags, compositionTags, lightingTags, matched).filter(function(value, index, list) {
     return value && list.indexOf(value) === index;
   }).join(', ');
+  const negative = ['lowres', 'bad anatomy', 'bad hands', 'extra fingers', 'text', 'watermark', 'blurry', 'jpeg artifacts'];
+  if (style === 'photo') negative.push('illustration', 'cartoon');
+  if (style === 'anime') negative.push('photorealistic', '3d render');
   if (output) output.value = draft;
-  if (status) status.textContent = '已生成本地草稿，共 ' + draft.split(', ').filter(Boolean).length + ' 个词。生成结果可继续编辑。';
+  if (negativeOutput) negativeOutput.value = negative.join(', ');
+  saveAiHistory(description, draft, negative.join(', '));
+  if (status) status.textContent = '已生成本地草稿：正向 ' + draft.split(', ').filter(Boolean).length + ' 项，反向 ' + negative.length + ' 项。';
 }
 
 function applyAiDraft() {
@@ -1600,6 +1658,65 @@ function applyAiDraft() {
     prompt.value = prompt.value.trim() ? prompt.value.trim() + ', ' + draft : draft;
     syncPromptSheet();
     showToast('AI 草稿已加入提示词');
+  }
+}
+
+function randomAiIdea() {
+  const ideas = [
+    '雨夜东京街头的赛博朋克少女',
+    '漂浮在云海上的古老图书馆',
+    '秋日森林中追逐萤火虫的旅行者',
+    '月光下的机械鲸鱼与深海遗迹',
+    '沙漠边缘的未来城市集市'
+  ];
+  const styles = ['anime', 'photo', 'cinematic', 'fantasy'];
+  document.getElementById('ai-description').value = ideas[Math.floor(Math.random() * ideas.length)];
+  document.getElementById('ai-style').value = styles[Math.floor(Math.random() * styles.length)];
+  generateAiDraft();
+}
+
+function clearAiDraft() {
+  ['ai-description', 'ai-result', 'ai-negative-result', 'ai-status'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.value !== undefined ? el.value = '' : el.textContent = '';
+  });
+}
+
+function saveAiHistory(description, positive, negative) {
+  const history = JSON.parse(localStorage.getItem('sd_ai_history') || '[]');
+  history.unshift({ description: description, positive: positive, negative: negative, createdAt: Date.now() });
+  localStorage.setItem('sd_ai_history', JSON.stringify(history.slice(0, 5)));
+  renderAiHistory();
+}
+
+function renderAiHistory() {
+  const historyEl = document.getElementById('ai-history');
+  if (!historyEl) return;
+  const history = JSON.parse(localStorage.getItem('sd_ai_history') || '[]');
+  historyEl.innerHTML = history.length ? history.map(function(item, index) {
+    return '<div class="admin-ai-history-item"><span>' + escapeHtml(item.description) + '</span><button class="icon-btn" onclick="restoreAiHistory(' + index + ')" title="恢复草稿">↗</button></div>';
+  }).join('') : '<span class="admin-ai-note">还没有生成记录</span>';
+}
+
+function restoreAiHistory(index) {
+  const history = JSON.parse(localStorage.getItem('sd_ai_history') || '[]');
+  const item = history[index];
+  if (!item) return;
+  document.getElementById('ai-description').value = item.description;
+  document.getElementById('ai-result').value = item.positive;
+  document.getElementById('ai-negative-result').value = item.negative;
+  document.getElementById('ai-status').textContent = '已恢复历史草稿，可继续编辑。';
+}
+
+async function copyAiDraft(kind) {
+  const id = kind === 'negative' ? 'ai-negative-result' : 'ai-result';
+  const text = document.getElementById(id).value.trim();
+  if (!text) { showToast('没有可复制的提示词'); return; }
+  try {
+    await navigator.clipboard.writeText(text);
+    showToast(kind === 'negative' ? '反向提示词已复制' : '正向提示词已复制');
+  } catch (e) {
+    showToast('复制失败，请手动选择文本');
   }
 }
 
